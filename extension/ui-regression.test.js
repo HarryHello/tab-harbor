@@ -88,6 +88,16 @@ test('index includes deferred drawer trigger and overlay', () => {
   assert.doesNotMatch(html, /deferred-trigger-label/);
 });
 
+test('manifest keeps only permissions required by the shipped runtime', () => {
+  const manifest = fs.readFileSync(path.join(__dirname, 'manifest.json'), 'utf8');
+
+  assert.match(manifest, /"tabs"/);
+  assert.match(manifest, /"storage"/);
+  assert.match(manifest, /"search"/);
+  assert.match(manifest, /"clipboardRead"/);
+  assert.doesNotMatch(manifest, /"activeTab"/);
+});
+
 test('footer credits point to the repo and OO GitHub profile', () => {
   const css = fs.readFileSync(path.join(__dirname, 'style.css'), 'utf8');
 
