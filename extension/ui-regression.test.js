@@ -249,7 +249,7 @@ test('quick tabs area renders shortcut cards and add button hooks', () => {
   const css = fs.readFileSync(path.join(__dirname, 'style.css'), 'utf8');
 
   assert.match(css, /\.quick-tabs-grid\s*\{/);
-  assert.match(css, /\.quick-tabs-grid\s*\{[\s\S]*display:\s*flex;[\s\S]*flex-wrap:\s*wrap;[\s\S]*justify-content:\s*flex-start;/);
+  assert.match(css, /\.quick-tabs-grid\s*\{[\s\S]*display:\s*grid;[\s\S]*grid-template-columns:\s*repeat\(auto-fill, 76px\);[\s\S]*justify-content:\s*flex-start;/);
   assert.match(css, /\.quick-shortcut-card\s*\{/);
   assert.match(css, /\.quick-shortcut-card\s*\{[\s\S]*border:\s*none;/);
   assert.match(css, /\.quick-shortcut-card\s*\{[\s\S]*grid-template-rows:\s*40px auto;/);
@@ -343,19 +343,25 @@ test('quick shortcuts support drag reordering with persisted order and drag prev
   assert.match(themeJs, /const maxClientX = listRect\.right \+ quickShortcutDragState\.offsetX - width \/ 2;/);
   assert.match(themeJs, /Math\.min\(Math\.max\(clientX, minClientX\), maxClientX\)/);
   assert.match(themeJs, /function ensureQuickShortcutSlot\(\)/);
+  assert.match(themeJs, /quickShortcutSlotEl\.className = 'quick-shortcut-slot is-drag-slot';/);
   assert.match(themeJs, /function ensureQuickShortcutGhost\(\)/);
   assert.match(themeJs, /quickShortcutDraggedEl\.replaceWith\(quickShortcutSlotEl\)/);
   assert.match(themeJs, /quickShortcutGhostEl\.style\.setProperty\('--drag-height'/);
   assert.match(themeJs, /function updateDraggedQuickShortcutPosition\(clientX, clientY\)\s*\{[\s\S]*quickShortcutGhostEl\.style\.setProperty\('--drag-left'/);
   assert.match(themeJs, /await saveQuickShortcuts\(themeReorderSubsetByIds\(/);
+  assert.match(themeJs, /function buildQuickShortcutSlotTargets\(listEl\)/);
+  assert.match(themeJs, /slotTargets:\s*buildQuickShortcutSlotTargets\(listEl\)/);
+  assert.match(themeJs, /function findQuickShortcutSlotIndex\(slotTargets, draggedCenterX, draggedCenterY\)/);
+  assert.match(themeJs, /const distance = \(dx \* dx\) \+ \(dy \* dy\);/);
   assert.match(themeJs, /function animateQuickShortcutNode\(item, previousRect\)/);
   assert.match(themeJs, /function settleQuickShortcutItems\(listEl, affectedIds = null\)/);
   assert.match(themeJs, /if \(affected && !affected\.has\(key\)\) return;/);
   assert.match(themeJs, /Math\.hypot\(deltaX, deltaY\)/);
   assert.match(themeJs, /cubic-bezier\(0\.22, 1, 0\.36, 1\)/);
   assert.match(themeJs, /const draggedCenterX = clampedPoint\.clientX - quickShortcutDragState\.offsetX \+ quickShortcutDragState\.width \/ 2;/);
-  assert.match(themeJs, /if \(draggedCenterX < rect\.left \+ rect\.width \/ 2\)/);
-  assert.match(themeJs, /listEl\.appendChild\(quickShortcutSlotEl\);/);
+  assert.match(themeJs, /const draggedCenterY = clampedPoint\.clientY - quickShortcutDragState\.offsetY \+ quickShortcutDragState\.height \/ 2;/);
+  assert.match(themeJs, /const targetIndex = findQuickShortcutSlotIndex\(\s*quickShortcutDragState\.slotTargets,\s*draggedCenterX,\s*draggedCenterY\s*\);/);
+  assert.match(themeJs, /const insertBeforeItem = items\[targetIndex\] \|\| null;/);
   assert.match(themeJs, /const targetBeforeNode = insertBeforeItem \|\| addCard \|\| null;/);
   assert.match(themeJs, /const currentBeforeNode = quickShortcutSlotEl\.nextElementSibling \|\| null;/);
   assert.match(themeJs, /if \(targetBeforeNode === currentBeforeNode\) return;/);

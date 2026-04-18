@@ -634,7 +634,7 @@ function getShortcutLabel(shortcut) {
 }
 
 function animateQuickShortcutNode(item, previousRect) {
-  if (!item || !previousRect || item.classList.contains('is-drag-slot')) return;
+  if (!item || !previousRect) return;
 
   const nextRect = item.getBoundingClientRect();
   const deltaX = previousRect.left - nextRect.left;
@@ -658,7 +658,7 @@ function animateQuickShortcutNode(item, previousRect) {
 
 function animateQuickShortcutItems(listEl, previousRects, affectedIds = null) {
   const affected = affectedIds instanceof Set ? affectedIds : null;
-  listEl?.querySelectorAll('[data-shortcut-id]').forEach(item => {
+  listEl?.querySelectorAll('[data-shortcut-id]:not(.is-drag-slot)').forEach(item => {
     const key = item.dataset.shortcutId || '';
     if (affected && !affected.has(key)) return;
     animateQuickShortcutNode(item, previousRects.get(key));
@@ -679,7 +679,7 @@ function ensureQuickShortcutSlot() {
   if (quickShortcutSlotEl || !quickShortcutDraggedEl) return quickShortcutSlotEl;
 
   quickShortcutSlotEl = document.createElement('div');
-  quickShortcutSlotEl.className = 'quick-shortcut-slot';
+  quickShortcutSlotEl.className = 'quick-shortcut-slot is-drag-slot';
   quickShortcutSlotEl.dataset.shortcutId = quickShortcutDraggedId;
   quickShortcutSlotEl.style.width = `${quickShortcutDragState?.width || quickShortcutDraggedEl.getBoundingClientRect().width}px`;
   quickShortcutSlotEl.style.height = `${quickShortcutDragState?.height || quickShortcutDraggedEl.getBoundingClientRect().height}px`;
@@ -738,24 +738,57 @@ function updateDraggedQuickShortcutPosition(clientX, clientY) {
   quickShortcutGhostEl.style.setProperty('--drag-top', `${clientY - quickShortcutDragState.offsetY}px`);
 }
 
+function buildQuickShortcutSlotTargets(listEl) {
+  if (!(listEl instanceof HTMLElement)) return [];
+
+  return [...listEl.querySelectorAll('[data-shortcut-id]')].map(item => {
+    const rect = item.getBoundingClientRect();
+    return {
+      left: rect.left,
+      top: rect.top,
+      centerX: rect.left + rect.width / 2,
+      centerY: rect.top + rect.height / 2,
+    };
+  });
+}
+
+function findQuickShortcutSlotIndex(slotTargets, draggedCenterX, draggedCenterY) {
+  if (!Array.isArray(slotTargets) || !slotTargets.length) return -1;
+
+  let targetIndex = 0;
+  let closestDistance = Number.POSITIVE_INFINITY;
+  slotTargets.forEach((slot, index) => {
+    const dx = draggedCenterX - slot.centerX;
+    const dy = draggedCenterY - slot.centerY;
+    const distance = (dx * dx) + (dy * dy);
+    if (distance < closestDistance) {
+      closestDistance = distance;
+      targetIndex = index;
+    }
+  });
+
+  return targetIndex;
+}
+
 function previewQuickShortcutOrder(clientX, clientY) {
   const listEl = quickShortcutDragState?.listEl;
   if (!listEl || !quickShortcutDraggedId || !quickShortcutSlotEl) return;
 
   const clampedPoint = clampQuickShortcutDragPoint(clientX, clientY);
   const draggedCenterX = clampedPoint.clientX - quickShortcutDragState.offsetX + quickShortcutDragState.width / 2;
+  const draggedCenterY = clampedPoint.clientY - quickShortcutDragState.offsetY + quickShortcutDragState.height / 2;
 
   const items = [...listEl.querySelectorAll('[data-shortcut-id]:not(.is-drag-slot)')];
   if (!items.length) return;
 
-  let insertBeforeItem = null;
-  for (const item of items) {
-    const rect = item.getBoundingClientRect();
-    if (draggedCenterX < rect.left + rect.width / 2) {
-      insertBeforeItem = item;
-      break;
-    }
-  }
+  const targetIndex = findQuickShortcutSlotIndex(
+    quickShortcutDragState.slotTargets,
+    draggedCenterX,
+    draggedCenterY
+  );
+  if (targetIndex === -1) return;
+
+  const insertBeforeItem = items[targetIndex] || null;
   const addCard = listEl.querySelector('.quick-shortcut-card.is-add');
   const targetBeforeNode = insertBeforeItem || addCard || null;
   const currentBeforeNode = quickShortcutSlotEl.nextElementSibling || null;
@@ -1091,6 +1124,7 @@ document.addEventListener('pointerdown', (e) => {
     y: e.clientY,
     offsetX: e.clientX - rect.left,
     offsetY: e.clientY - rect.top,
+    slotTargets: buildQuickShortcutSlotTargets(listEl),
     width: rect.width,
     height: rect.height,
     moved: false,

@@ -218,8 +218,8 @@ body::before {
 }
 
 .quick-tabs-grid {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, 76px);
   justify-content: flex-start;
   align-items: flex-start;
   gap: 12px 10px;
