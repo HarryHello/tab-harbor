@@ -425,6 +425,45 @@ function getShortcutEditorElements() {
   };
 }
 
+function resetShortcutEditorPosition(panel) {
+  if (!panel) return;
+  panel.style.removeProperty('left');
+  panel.style.removeProperty('top');
+  panel.style.removeProperty('right');
+  panel.style.removeProperty('bottom');
+  panel.style.removeProperty('inset');
+}
+
+function positionShortcutEditor(triggerEl = null) {
+  const panel = document.getElementById('shortcutEditor');
+  if (!panel) return;
+
+  if (!(triggerEl instanceof HTMLElement)) {
+    resetShortcutEditorPosition(panel);
+    return;
+  }
+
+  const viewportPadding = 16;
+  const offset = 14;
+  const triggerRect = triggerEl.getBoundingClientRect();
+  const panelRect = panel.getBoundingClientRect();
+  const panelWidth = panelRect.width || 360;
+  const panelHeight = panelRect.height || 420;
+
+  const fitsBelow = triggerRect.bottom + offset + panelHeight <= window.innerHeight - viewportPadding;
+  const top = fitsBelow
+    ? triggerRect.bottom + offset
+    : Math.max(viewportPadding, triggerRect.top - panelHeight - offset);
+  const left = Math.min(
+    Math.max(triggerRect.left - 8, viewportPadding),
+    window.innerWidth - panelWidth - viewportPadding
+  );
+
+  panel.style.inset = 'auto';
+  panel.style.left = `${Math.round(left)}px`;
+  panel.style.top = `${Math.round(top)}px`;
+}
+
 function syncShortcutEditor() {
   const elements = getShortcutEditorElements();
   if (!elements.panel || !elements.backdrop) return;
@@ -506,12 +545,14 @@ function openShortcutEditor(shortcut = null, triggerEl = null) {
   });
   syncShortcutEditor();
   requestAnimationFrame(() => {
+    positionShortcutEditor(triggerEl);
     getShortcutEditorElements().url?.focus?.({ preventScroll: true });
   });
 }
 
 function closeShortcutEditor({ restoreFocus = true } = {}) {
   const focusTarget = shortcutEditorState.focusReturnEl;
+  resetShortcutEditorPosition(getShortcutEditorElements().panel);
   shortcutEditorState = createShortcutEditorState();
   syncShortcutEditor();
   if (restoreFocus) {

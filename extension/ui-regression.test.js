@@ -289,6 +289,10 @@ test('quick tabs area renders shortcut cards and add button hooks', () => {
   assert.match(themeJs, /tryShortcutEditorPasteViaExecCommand/);
   assert.match(themeJs, /document\.execCommand\('paste'\)/);
   assert.match(themeJs, /openShortcutEditor/);
+  assert.match(themeJs, /function positionShortcutEditor\(triggerEl = null\)/);
+  assert.match(themeJs, /const triggerRect = triggerEl\.getBoundingClientRect\(\)/);
+  assert.match(themeJs, /panel\.style\.left = `\$\{Math\.round\(left\)\}px`;/);
+  assert.match(themeJs, /positionShortcutEditor\(triggerEl\);/);
   assert.match(themeJs, /saveShortcutEditorShortcut/);
   assert.match(themeJs, /Shortcut icon updated/);
   assert.match(themeJs, /upload-shortcut-icon/);
