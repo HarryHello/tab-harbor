@@ -132,24 +132,24 @@ const THEMES = {
     },
   },
   midnight: {
-    name: 'Midnight',
+    name: 'Night',
     meta: 'Dark mode',
     vars: {
       // 基础颜色
       '--ink': '#e8e2da',
-      '--paper': '#1a1613',
+      '--paper': '#0c1821',
       '--warm-gray': '#2a2420',
       '--muted': '#7a7169',
 
       // 强调色（调整为适合暗色背景）
-      '--accent-amber': '#d4854a',
+      '--accent-amber': '#82aae8',
       '--accent-sage': '#6b8f75',
       '--accent-slate': '#6b7f8f',
       '--accent-rose': '#c46b6b',
 
       // 工作区配色
-      '--workspace-accent': '#9a754f',
-      '--workspace-accent-soft': '#2a2420',
+      '--workspace-accent': '#82aae8',
+      '--workspace-accent-soft': '#152535',
       '--workspace-accent-border': '#3a3430',
       '--workspace-accent-contrast': '#1a1613',
 
@@ -159,14 +159,7 @@ const THEMES = {
       '--status-abandoned': '#c46b6b',
 
       // 卡片背景
-      '--card-bg': '#221c18',
-
-      // ⭐ 新增：覆盖阴影颜色（暗色模式下需要更亮的阴影）
-      '--shadow': 'rgba(232, 226, 218, 0.08)',
-
-      // ⭐ 可选：覆盖透明度相关变量（如果需要不同的透明效果）
-      // '--custom-surface-opacity': '18%',
-      // '--floating-surface-opacity': '88%',
+      '--card-bg': '#142031',
     },
   }
 };
