@@ -294,22 +294,27 @@ function hexToRgbChannels(hex) {
   return `${r} ${g} ${b}`;
 }
 
+function computeThemeOpacityVars(surfaceOpacity) {
+  return {
+    '--custom-surface-opacity': `${surfaceOpacity}%`,
+    '--custom-border-opacity': `${Math.max(8, surfaceOpacity)}%`,
+    '--custom-badge-opacity': `${Math.max(3, Math.round(surfaceOpacity * 0.28))}%`,
+    '--custom-fallback-opacity': `${Math.max(4, Math.round(surfaceOpacity * 0.36))}%`,
+  };
+}
+
 function applyThemePreferences() {
   const root = document.documentElement;
   const body = document.body;
   const theme = getThemeDefinition(themePreferences.themeId);
-  const surfaceOpacity = themePreferences.surfaceOpacity;
-  const borderOpacity = Math.max(8, surfaceOpacity);
-  const badgeOpacity = Math.max(3, Math.round(surfaceOpacity * 0.28));
-  const fallbackOpacity = Math.max(4, Math.round(surfaceOpacity * 0.36));
+  const opacityVars = computeThemeOpacityVars(themePreferences.surfaceOpacity);
 
   Object.entries(theme.vars).forEach(([name, value]) => {
     root.style.setProperty(name, value);
   });
-  root.style.setProperty('--custom-surface-opacity', `${surfaceOpacity}%`);
-  root.style.setProperty('--custom-border-opacity', `${borderOpacity}%`);
-  root.style.setProperty('--custom-badge-opacity', `${badgeOpacity}%`);
-  root.style.setProperty('--custom-fallback-opacity', `${fallbackOpacity}%`);
+  Object.entries(opacityVars).forEach(([name, value]) => {
+    root.style.setProperty(name, value);
+  });
 
   if (themePreferences.customBackground) {
     root.style.setProperty('--page-custom-background', `url("${themePreferences.customBackground}")`);
@@ -325,6 +330,7 @@ function applyThemePreferences() {
       body.classList.remove('has-custom-background');
     }
   }
+
 }
 
 function renderThemeMenu() {
@@ -1850,6 +1856,20 @@ async function loadThemePreferences() {
   return themePreferences;
 }
 
+function syncPopupTheme(targetDoc) {
+  const root = targetDoc?.documentElement;
+  if (!root) return;
+  const theme = getThemeDefinition(themePreferences.themeId);
+  const opacityVars = computeThemeOpacityVars(themePreferences.surfaceOpacity);
+
+  Object.entries(theme.vars).forEach(([name, value]) => {
+    root.style.setProperty(name, value);
+  });
+  Object.entries(opacityVars).forEach(([name, value]) => {
+    root.style.setProperty(name, value);
+  });
+}
+
 async function saveThemePreferences(nextPreferences) {
   themePreferences = normalizeThemePreferences({
     ...themePreferences,
@@ -1865,4 +1885,10 @@ globalThis.TabOutThemeControls = {
   filterRealTabs,
   normalizeShortcutUrl,
   normalizeQuickShortcuts,
+  getQuickShortcuts,
+  saveQuickShortcuts,
+  removeQuickShortcutById,
+  saveQuickShortcutOrder,
+  loadThemePreferences,
+  syncPopupTheme,
 };
