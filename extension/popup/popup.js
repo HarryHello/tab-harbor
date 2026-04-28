@@ -49,20 +49,23 @@ function getTabLabel(tab) {
 
 const filterTabs = popupTheme.filterRealTabs || (tabs => Array.isArray(tabs) ? tabs : []);
 
-const LANDING_PAGE_PATTERNS = [
-  { hostname: 'mail.google.com', test: (_p, h) =>
-      !h.includes('#inbox/') && !h.includes('#sent/') && !h.includes('#search/') },
-  { hostname: 'x.com',               pathExact: ['/home'] },
-  { hostname: 'www.linkedin.com',    pathExact: ['/'] },
-  { hostname: 'github.com',          pathExact: ['/'] },
-  { hostname: 'www.youtube.com',     pathExact: ['/'] },
-  ...(typeof LOCAL_LANDING_PAGE_PATTERNS !== 'undefined' ? LOCAL_LANDING_PAGE_PATTERNS : []),
-];
+function getLandingPatterns() {
+  const base = [
+    { hostname: 'mail.google.com', test: (_p, h) =>
+        !h.includes('#inbox/') && !h.includes('#sent/') && !h.includes('#search/') },
+    { hostname: 'x.com',               pathExact: ['/home'] },
+    { hostname: 'www.linkedin.com',    pathExact: ['/'] },
+    { hostname: 'github.com',          pathExact: ['/'] },
+    { hostname: 'www.youtube.com',     pathExact: ['/'] },
+  ];
+  const local = typeof LOCAL_LANDING_PAGE_PATTERNS !== 'undefined' ? LOCAL_LANDING_PAGE_PATTERNS : [];
+  return [...base, ...local];
+}
 
 function isLandingPage(url) {
   try {
     const parsed = new URL(url);
-    return LANDING_PAGE_PATTERNS.some(p => {
+    return getLandingPatterns().some(p => {
       const hostnameMatch = p.hostname
         ? parsed.hostname === p.hostname
         : p.hostnameEndsWith
@@ -77,12 +80,14 @@ function isLandingPage(url) {
   } catch { return false; }
 }
 
-const customGroups = typeof LOCAL_CUSTOM_GROUPS !== 'undefined' ? LOCAL_CUSTOM_GROUPS : [];
+function getCustomGroups() {
+  return typeof LOCAL_CUSTOM_GROUPS !== 'undefined' ? LOCAL_CUSTOM_GROUPS : [];
+}
 
 function matchCustomGroup(url) {
   try {
     const parsed = new URL(url);
-    return customGroups.find(r => {
+    return getCustomGroups().find(r => {
       const hostMatch = r.hostname
         ? parsed.hostname === r.hostname
         : r.hostnameEndsWith
@@ -213,8 +218,8 @@ function buildPopupTabGroups() {
     cgTabs.forEach(tab => usedTabIds.add(tab.id));
   }
 
-  const landingHostnames = new Set(LANDING_PAGE_PATTERNS.map(p => p.hostname).filter(Boolean));
-  const landingSuffixes = LANDING_PAGE_PATTERNS.map(p => p.hostnameEndsWith).filter(Boolean);
+  const landingHostnames = new Set(getLandingPatterns().map(p => p.hostname).filter(Boolean));
+  const landingSuffixes = getLandingPatterns().map(p => p.hostnameEndsWith).filter(Boolean);
   function isLandingDomain(domain) {
     if (landingHostnames.has(domain)) return true;
     return landingSuffixes.some(s => domain.endsWith(s));
@@ -326,7 +331,7 @@ function renderTabGroup(group, groupIndex) {
     const fallbackLabel = popupIcons.getFallbackLabel ? popupIcons.getFallbackLabel(title, iconData.hostname) : '?';
     const closeLabel = popupI18n.t ? popupI18n.t('closeTabButton') : 'Close';
     return `
-      <div class="popup-tab-row" style="--g:${groupIndex};--r:${tabIndex}" data-action="open-popup-url" data-url="${safeUrl}">
+      <div class="popup-tab-row" style="--g:${groupIndex};--r:${tabIndex}" data-action="open-popup-url" data-url="${safeUrl}" data-tab-id="${tab.id}">
         ${iconData.sources?.[0] ? `<img class="popup-tab-favicon" src="${escapeAttr(iconData.sources[0])}" alt="">` : `<span class="popup-tab-favicon-fallback">${escapeAttr(fallbackLabel)}</span>`}
         <span class="popup-tab-title" title="${safeTitle}">${safeTitle}</span>
         <button class="popup-tab-open-btn" type="button" data-action="close-popup-tab" data-tab-id="${tab.id}">${closeLabel}</button>
@@ -469,16 +474,26 @@ function initializePopup() {
     if (action === 'close-popup-tab') {
       e.preventDefault();
       const tabId = Number(actionEl.dataset.tabId);
-      if (tabId) {
+      if (!tabId) return;
+      actionEl.classList.add('is-loading');
+      try {
         await chrome.tabs.remove(tabId);
         await refreshPopup();
+      } finally {
+        actionEl.classList.remove('is-loading');
       }
       return;
     }
 
     if (action === 'open-popup-url') {
       e.preventDefault();
-      await openPopupUrl(actionEl.dataset.url || '');
+      const tabId = Number(actionEl.dataset.tabId);
+      if (tabId) {
+        await chrome.tabs.update(tabId, { active: true });
+        window.close();
+      } else {
+        await openPopupUrl(actionEl.dataset.url || '');
+      }
       return;
     }
 

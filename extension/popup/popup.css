@@ -7,6 +7,7 @@ html, body {
   width: 100%;
   min-width: 380px;
   max-width: 420px;
+  height: fit-content;
   margin: 0;
   padding: 0;
   /* subtle paper grain */
@@ -100,10 +101,17 @@ body.popup-shell {
   background: var(--workspace-chip-bg);
   color: var(--workspace-accent);
 }
-.popup-refresh-btn .btn-svg:hover {
+
+.popup-refresh-btn:hover .btn-svg {
   transform: rotate(90deg);
-  transition: all 0.3s;
+  transition: all 150ms ease;
 }
+
+.popup-refresh-btn:active .btn-svg {
+  transform: rotate(180deg);
+  transition: all 150ms ease;
+}
+
 
 
 .popup-refresh-btn:active {
@@ -425,17 +433,33 @@ body.popup-shell {
   font-weight: 600;
   cursor: pointer;
   flex-shrink: 0;
-  transition: background 140ms ease, transform 100ms ease;
   letter-spacing: 0.02em;
+  transition:
+    background 140ms ease,
+    color 140ms ease,
+    border-color 140ms ease,
+    transform 100ms ease,
+    box-shadow 140ms ease;
+  border: 1.5px solid transparent;
+  box-shadow: 0 1px 2px var(--shadow);
 }
 
 .popup-tab-open-btn:hover {
-  background: var(--workspace-chip-bg-strong);
+  background: var(--workspace-chip-bg);
   color: var(--workspace-accent);
+  border-color: var(--workspace-accent-border);
+  transform: scale(1.05);
+  box-shadow: 0 2px 6px var(--shadow);
 }
 
 .popup-tab-open-btn:active {
-  transform: scale(0.94);
+  transform: scale(0.93);
+  box-shadow: 0 1px 2px var(--shadow);
+}
+
+.popup-tab-open-btn.is-loading {
+  pointer-events: none;
+  opacity: 0.7;
 }
 
 /* ── Scrollbars ──────────────────────────────────────────────── */
