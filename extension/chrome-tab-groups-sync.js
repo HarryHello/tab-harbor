@@ -8,8 +8,54 @@
   let cachedEnabled = false;
   let chromeGroupMap = {};
   let importMode = false;
+  let chromeEventMuteUntil = 0;
+  let chromeListenersAttached = false;
+  const chromeGroupSubscribers = new Set();
 
   const GROUP_COLORS = ['grey', 'red', 'green', 'pink', 'purple', 'cyan', 'orange'];
+
+  function muteChromeGroupEvents(durationMs = 250) {
+    chromeEventMuteUntil = Math.max(chromeEventMuteUntil, Date.now() + durationMs);
+  }
+
+  function shouldIgnoreChromeEvent() {
+    return !cachedEnabled || Date.now() < chromeEventMuteUntil;
+  }
+
+  function notifyChromeGroupSubscribers(event) {
+    if (shouldIgnoreChromeEvent()) return;
+    for (const subscriber of chromeGroupSubscribers) {
+      try {
+        subscriber(event);
+      } catch {}
+    }
+  }
+
+  function attachChromeListeners() {
+    if (chromeListenersAttached || typeof chrome === 'undefined') return;
+
+    const eventBindings = [
+      [chrome.tabGroups?.onCreated, group => notifyChromeGroupSubscribers({ source: 'tabGroups.onCreated', group })],
+      [chrome.tabGroups?.onUpdated, (groupId, changeInfo) => notifyChromeGroupSubscribers({ source: 'tabGroups.onUpdated', groupId, changeInfo })],
+      [chrome.tabGroups?.onRemoved, group => notifyChromeGroupSubscribers({ source: 'tabGroups.onRemoved', group })],
+      [chrome.tabs?.onAttached, (tabId, attachInfo) => notifyChromeGroupSubscribers({ source: 'tabs.onAttached', tabId, attachInfo })],
+      [chrome.tabs?.onCreated, tab => notifyChromeGroupSubscribers({ source: 'tabs.onCreated', tab })],
+      [chrome.tabs?.onDetached, (tabId, detachInfo) => notifyChromeGroupSubscribers({ source: 'tabs.onDetached', tabId, detachInfo })],
+      [chrome.tabs?.onRemoved, (tabId, removeInfo) => notifyChromeGroupSubscribers({ source: 'tabs.onRemoved', tabId, removeInfo })],
+      [chrome.tabs?.onUpdated, (tabId, changeInfo, tab) => {
+        if (changeInfo?.groupId == null) return;
+        notifyChromeGroupSubscribers({ source: 'tabs.onUpdated', tabId, changeInfo, tab });
+      }],
+    ];
+
+    for (const [eventSource, listener] of eventBindings) {
+      if (eventSource && typeof eventSource.addListener === 'function') {
+        eventSource.addListener(listener);
+      }
+    }
+
+    chromeListenersAttached = true;
+  }
 
   function getGroupTitle(group) {
     if (group.domain === '__landing-pages__') return 'Homepages';
@@ -105,6 +151,7 @@
   }
 
   async function removeAllChromeGroups() {
+    muteChromeGroupEvents();
     const allTrackedTabIds = [];
     for (const windowMap of Object.values(chromeGroupMap)) {
       for (const chromeGroupId of Object.values(windowMap)) {
@@ -127,6 +174,7 @@
   }
 
   async function syncChromeTabGroups(domainGroups) {
+    muteChromeGroupEvents();
     await loadPersistedChromeGroupMap();
 
     if (!cachedEnabled) {
@@ -240,6 +288,7 @@
     chromeGroupMap = {};
     cachedEnabled = false;
     importMode = false;
+    chromeEventMuteUntil = 0;
     try {
       await chrome.storage.local.remove(META_PERSIST_KEY);
     } catch {}
@@ -269,12 +318,50 @@
     }
   }
 
+  async function syncChromeTabGroupExpansionForTab(tab) {
+    if (!cachedEnabled || !isChromeApiAvailable()) return;
+
+    const targetGroupId = Number(tab?.groupId);
+    const targetWindowId = Number(tab?.windowId);
+    if (!Number.isFinite(targetGroupId) || targetGroupId < 0) return;
+    if (!Number.isFinite(targetWindowId)) return;
+
+    let groups = [];
+    try {
+      groups = await chrome.tabGroups.query({});
+    } catch {
+      return;
+    }
+
+    const groupsInWindow = groups.filter(group => Number(group?.windowId) === targetWindowId);
+    muteChromeGroupEvents();
+
+    for (const group of groupsInWindow) {
+      const nextCollapsed = group.id !== targetGroupId;
+      if (Boolean(group.collapsed) === nextCollapsed) continue;
+      try {
+        await chrome.tabGroups.update(group.id, { collapsed: nextCollapsed });
+      } catch {}
+    }
+  }
+
   function setImportMode(enabled) {
     importMode = Boolean(enabled);
   }
 
   function isImportMode() {
     return importMode;
+  }
+
+  function subscribeToChromeTabGroupChanges(listener) {
+    if (typeof listener !== 'function') {
+      return () => {};
+    }
+    attachChromeListeners();
+    chromeGroupSubscribers.add(listener);
+    return () => {
+      chromeGroupSubscribers.delete(listener);
+    };
   }
 
   const api = {
@@ -286,8 +373,10 @@
     getChromeGroupCount,
     populateChromeGroupMap,
     queryExistingChromeGroups,
+    syncChromeTabGroupExpansionForTab,
     setImportMode,
     isImportMode,
+    subscribeToChromeTabGroupChanges,
     STORAGE_KEY,
     assignGroupColor,
     getGroupTitle,

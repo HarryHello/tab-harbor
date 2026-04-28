@@ -3,6 +3,24 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
+function createEventEmitter() {
+  const listeners = new Set();
+  return {
+    addListener(listener) {
+      listeners.add(listener);
+    },
+    removeListener(listener) {
+      listeners.delete(listener);
+    },
+    hasListener(listener) {
+      return listeners.has(listener);
+    },
+    emit(...args) {
+      for (const listener of listeners) listener(...args);
+    },
+  };
+}
+
 // Mock chrome APIs before loading the module
 const mockStorage = {};
 globalThis.chrome = {
@@ -21,11 +39,19 @@ globalThis.chrome = {
     group: async (opts) => 0,
     ungroup: async () => {},
     query: async (opts) => opts?.groupId != null ? [] : [],
+    onAttached: createEventEmitter(),
+    onCreated: createEventEmitter(),
+    onDetached: createEventEmitter(),
+    onRemoved: createEventEmitter(),
+    onUpdated: createEventEmitter(),
   },
   tabGroups: {
     query: async () => [],
     update: async () => {},
     get: async () => null,
+    onCreated: createEventEmitter(),
+    onRemoved: createEventEmitter(),
+    onUpdated: createEventEmitter(),
   },
 };
 
@@ -35,12 +61,14 @@ const {
   loadChromeTabGroupsSetting,
   saveChromeTabGroupsSetting,
   syncChromeTabGroups,
+  syncChromeTabGroupExpansionForTab,
   resetChromeGroupState,
   isChromeTabGroupsEnabled,
   getChromeGroupCount,
   populateChromeGroupMap,
   queryExistingChromeGroups,
   setImportMode,
+  subscribeToChromeTabGroupChanges,
   assignGroupColor,
   getGroupTitle,
 } = globalThis.TabOutChromeTabGroups;
@@ -321,4 +349,58 @@ test('syncChromeTabGroups in import mode skips creating new groups for ungrouped
   setImportMode(false);
   await syncChromeTabGroups(groups);
   assert.equal(createCalls, 1);
+});
+
+test('subscribeToChromeTabGroupChanges notifies on external Chrome group changes', async () => {
+  resetChromeGroupState();
+  await saveChromeTabGroupsSetting(true);
+
+  const events = [];
+  const unsubscribe = subscribeToChromeTabGroupChanges(event => {
+    events.push(event);
+  });
+
+  globalThis.chrome.tabGroups.onUpdated.emit(501, { title: 'Work' });
+
+  assert.equal(events.length, 1);
+  assert.equal(events[0].source, 'tabGroups.onUpdated');
+
+  unsubscribe();
+});
+
+test('syncChromeTabGroupExpansionForTab expands target group and collapses sibling groups in same window', async () => {
+  resetChromeGroupState();
+  await saveChromeTabGroupsSetting(true);
+
+  const updateCalls = [];
+  globalThis.chrome.tabGroups.query = async () => [
+    { id: 101, windowId: 1, collapsed: true },
+    { id: 102, windowId: 1, collapsed: false },
+    { id: 103, windowId: 2, collapsed: false },
+  ];
+  globalThis.chrome.tabGroups.update = async (id, opts) => {
+    updateCalls.push({ id, ...opts });
+  };
+
+  await syncChromeTabGroupExpansionForTab({ groupId: 101, windowId: 1 });
+
+  assert.deepEqual(updateCalls, [
+    { id: 101, collapsed: false },
+    { id: 102, collapsed: true },
+  ]);
+});
+
+test('syncChromeTabGroupExpansionForTab skips work when Chrome sync is disabled', async () => {
+  resetChromeGroupState();
+  await saveChromeTabGroupsSetting(false);
+
+  let queryCount = 0;
+  globalThis.chrome.tabGroups.query = async () => {
+    queryCount++;
+    return [];
+  };
+
+  await syncChromeTabGroupExpansionForTab({ groupId: 101, windowId: 1 });
+
+  assert.equal(queryCount, 0);
 });
