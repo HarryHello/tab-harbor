@@ -1582,6 +1582,28 @@ async function renderStaticDashboard() {
   const dateEl     = document.getElementById('dateDisplay');
   if (greetingEl) greetingEl.textContent = getGreeting();
   if (dateEl)     dateEl.textContent     = getDateDisplay();
+
+  // --- Hitokoto (一言) ---
+  const hitokotoEnabled = typeof themePreferences !== 'undefined' ? themePreferences.hitokotoEnabled : true;
+  const hitokotoEl     = document.getElementById('hitokoto');
+  const hitokotoTextEl = document.getElementById('hitokotoText');
+  const hitokotoFromEl = document.getElementById('hitokotoFrom');
+  if (hitokotoEnabled && hitokotoEl && hitokotoTextEl && hitokotoFromEl) {
+    try {
+      const data = await fetchHitokoto();
+      if (data) {
+        hitokotoTextEl.textContent = data.hitokoto;
+        const from = [data.from_who, data.from].filter(Boolean).join(' · ');
+        hitokotoFromEl.textContent = from ? ` — ${from}` : '';
+        hitokotoEl.style.display = '';
+      }
+    } catch (_e) {
+      // Silently fail — hitokoto is a nice-to-have, not critical
+    }
+  } else if (hitokotoEl) {
+    hitokotoEl.style.display = 'none';
+  }
+
   renderThemeMenu();
   await renderQuickShortcuts();
 
