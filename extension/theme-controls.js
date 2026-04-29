@@ -1214,6 +1214,7 @@ function previewQuickShortcutOrder(clientX, clientY) {
 function renderQuickShortcutCard(shortcut) {
   const label = getShortcutLabel(shortcut);
   const safeLabel = themeEscapeHtml ? themeEscapeHtml(label) : label;
+  const safeAriaLabel = themeEscapeHtmlAttribute ? themeEscapeHtmlAttribute(label) : label.replace(/"/g, '&quot;');
   const iconData = themeGetIconSources({ url: shortcut.url, title: label }, 32);
   const faviconUrl = iconData.sources[0] || '';
   const fallbackUrl = iconData.sources[1] || '';
@@ -1234,7 +1235,7 @@ function renderQuickShortcutCard(shortcut) {
 
   return `
     <div class="quick-shortcut-card" data-shortcut-id="${safeId}">
-      <button class="quick-shortcut-open" type="button" data-action="open-quick-shortcut" data-shortcut-url="${safeUrl}" aria-label="${label}" draggable="false">
+      <button class="quick-shortcut-open" type="button" data-action="open-quick-shortcut" data-shortcut-url="${safeUrl}" aria-label="${safeAriaLabel}" draggable="false">
         <span class="quick-shortcut-icon-wrap">
           ${primaryIconUrl ? `<img class="quick-shortcut-icon${customIcon.kind === 'image' ? ' quick-shortcut-icon-custom' : ''}" src="${primaryIconUrl}" alt="" draggable="false" data-fallback-src="${safeIconErrorFallback}">` : ''}
           ${glyphIcon ? `<span class="quick-shortcut-custom-glyph" aria-hidden="true">${glyphIcon}</span>` : ''}

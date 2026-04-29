@@ -216,7 +216,7 @@ function renderTodoDetail(todo) {
       </button>
       <div class="todo-detail-card">
         <h3>${drawerEscapeHtml ? drawerEscapeHtml(todo.title) : todo.title}</h3>
-        <p>${todo.description || 'Add a note when this task needs more context.'}</p>
+        <p>${drawerEscapeHtml ? drawerEscapeHtml(todo.description || 'Add a note when this task needs more context.') : (todo.description || 'Add a note when this task needs more context.')}</p>
         <div class="todo-detail-meta">Created ${timeAgo(todo.createdAt)}</div>
       </div>
     </div>`;
